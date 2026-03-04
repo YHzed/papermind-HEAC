@@ -15,6 +15,43 @@ export interface ArticleDetail extends ArticleMeta {
   images: string[];
 }
 
+export interface WorkflowStep {
+  name: string;
+  type: "per_article" | "aggregate";
+  prompt: string;
+}
+
+export interface Workflow {
+  name: string;
+  description: string;
+  steps: WorkflowStep[];
+}
+
+export interface WorkflowRunSummary {
+  id: string;
+  workflow_name: string;
+  articles: { id: string; name: string }[];
+  status: "running" | "completed" | "error";
+  created_at: string;
+  completed_at: string | null;
+  error_message: string | null;
+  step_count: number;
+}
+
+export interface WorkflowRunStepResult {
+  name: string;
+  type: "per_article" | "aggregate";
+  status: "pending" | "running" | "completed";
+  results: Record<string, string> | null;
+  result: string | null;
+}
+
+export interface WorkflowRunDetail extends WorkflowRunSummary {
+  article_ids: string[];
+  current_step: number;
+  steps: WorkflowRunStepResult[];
+}
+
 export interface AppConfig {
   api_keys: { mistral: string; openai: string };
   llm: {
@@ -25,6 +62,7 @@ export interface AppConfig {
   };
   system_prompt: string;
   templates: Template[];
+  workflows: Workflow[];
 }
 
 export interface Template {
@@ -115,4 +153,15 @@ export const api = {
 
   deleteSessionMessage: (articleId: string, sessionId: string, messageId: string) =>
     request(`/articles/${articleId}/sessions/${sessionId}/chat/${messageId}`, { method: "DELETE" }),
+
+  // --- Workflows ---
+
+  listWorkflows: () => request<Workflow[]>("/workflows"),
+
+  listWorkflowRuns: () => request<WorkflowRunSummary[]>("/workflow-runs"),
+
+  getWorkflowRun: (runId: string) => request<WorkflowRunDetail>(`/workflow-runs/${runId}`),
+
+  deleteWorkflowRun: (runId: string) =>
+    request(`/workflow-runs/${runId}`, { method: "DELETE" }),
 };

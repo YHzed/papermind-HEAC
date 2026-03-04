@@ -3,6 +3,8 @@ import { Toaster } from "@/components/ui/sonner";
 import { ArticlesPage } from "@/pages/ArticlesPage";
 import { ArticleDetailPage } from "@/pages/ArticleDetailPage";
 import { ConfigPage } from "@/pages/ConfigPage";
+import { WorkflowsPage } from "@/pages/WorkflowsPage";
+import { WorkflowRunPage } from "@/pages/WorkflowRunPage";
 
 function App() {
   return (
@@ -23,6 +25,14 @@ function App() {
                 }
               >
                 文章
+              </NavLink>
+              <NavLink
+                to="/workflows"
+                className={({ isActive }) =>
+                  `rounded-md px-3 py-1.5 text-sm transition-colors ${isActive ? "bg-primary/10 font-medium text-primary" : "text-muted-foreground hover:text-foreground"}`
+                }
+              >
+                工作流
               </NavLink>
               <NavLink
                 to="/config"
@@ -50,6 +60,30 @@ function App() {
               element={
                 <div className="flex min-h-0 flex-1 flex-col px-6 py-4">
                   <ArticleDetailPage />
+                </div>
+              }
+            />
+            <Route
+              path="/workflows"
+              element={
+                <div className="min-h-0 flex-1 overflow-auto px-6 py-6">
+                  <div className="mx-auto max-w-5xl"><WorkflowsPage /></div>
+                </div>
+              }
+            />
+            <Route
+              path="/workflows/run"
+              element={
+                <div className="min-h-0 flex-1 overflow-auto px-6 py-6">
+                  <div className="mx-auto max-w-5xl"><WorkflowRunPage /></div>
+                </div>
+              }
+            />
+            <Route
+              path="/workflows/run/:id"
+              element={
+                <div className="min-h-0 flex-1 overflow-auto px-6 py-6">
+                  <div className="mx-auto max-w-5xl"><WorkflowRunPage /></div>
                 </div>
               }
             />

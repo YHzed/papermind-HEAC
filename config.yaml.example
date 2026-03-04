@@ -6,8 +6,26 @@ llm:
   model: gpt-4o
   temperature: 0.7
   max_tokens: 4096
-system_prompt: 你是一个专业的文章分析助手。用户会提供文章内容，请根据用户的问题进行分析和回答。
+system_prompt: 你是一个文章助手，请根据文章内容和用户的需求完成任务。
 templates:
 - name: 分析文章
   description: 通用文章分析
   user_prompt: 请对这篇文章进行全面分析
+workflows:
+- name: 材料信息提取
+  description: 从单篇或多篇文章中提取材料的成分、工艺与组成信息并汇总
+  steps:
+  - name: 逐篇提取
+    type: per_article
+    prompt: |-
+      请从这篇文章中提取所有涉及的材料信息，按以下结构输出：
+      - 材料名称
+      - 成分 (Composition)
+      - 制备工艺 (Process)
+      - 微观组成 / 结构 (Microstructure)
+      若文中未提及某项，标注"未提及"。以 Markdown 表格格式输出。
+  - name: 汇总整合
+    type: aggregate
+    prompt: |-
+      请将以上从各篇文章中提取的材料信息去重、合并，输出一个统一的 Markdown 表格，列为：材料名称 | 成分 | 工艺 | 组成/结构 | 来源文章。
+      如有矛盾信息请标注。

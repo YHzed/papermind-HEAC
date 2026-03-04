@@ -47,6 +47,11 @@ def get_templates() -> list:
     return config.get("templates", [])
 
 
+def get_workflows() -> list:
+    config = load_config()
+    return config.get("workflows", [])
+
+
 def mask_key(key: str) -> str:
     """隐藏 API key 中间部分"""
     if not key or len(key) < 8:

@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
-from .config_manager import load_config, save_config, get_templates, mask_key, get_api_key
+from .config_manager import load_config, save_config, get_templates, get_workflows, mask_key, get_api_key
 from .ocr_service import process_pdf_stream
 from .md_parser import process_markdown_stream
 from .llm_service import run_llm_task_stream
@@ -17,6 +17,10 @@ from .chat_service import (
     list_sessions, create_session, delete_session,
     load_session_messages, delete_session_message,
     chat_stream,
+)
+from .workflow_service import (
+    list_workflow_runs, get_workflow_run, delete_workflow_run,
+    execute_workflow_stream,
 )
 
 BASE_DIR = Path(__file__).parent.parent
@@ -49,6 +53,8 @@ def get_config():
     masked["api_keys"] = {
         k: mask_key(get_api_key(k)) for k in ("mistral", "openai")
     }
+    if "workflows" not in masked:
+        masked["workflows"] = []
     return masked
 
 
@@ -57,6 +63,7 @@ class ConfigUpdate(BaseModel):
     llm: dict | None = None
     system_prompt: str | None = None
     templates: list | None = None
+    workflows: list | None = None
 
 
 @app.put("/api/config")
@@ -74,6 +81,8 @@ def update_config(body: ConfigUpdate):
         config["system_prompt"] = body.system_prompt
     if body.templates is not None:
         config["templates"] = body.templates
+    if body.workflows is not None:
+        config["workflows"] = body.workflows
     save_config(config)
     return {"ok": True}
 
@@ -324,6 +333,63 @@ def delete_session_chat_msg(article_id: str, session_id: str, message_id: str):
     if not article_dir.exists():
         raise HTTPException(404, "文章不存在")
     delete_session_message(article_dir, session_id, message_id)
+    return {"ok": True}
+
+
+# ---------- Workflows ----------
+
+@app.get("/api/workflows")
+def get_workflow_templates():
+    return get_workflows()
+
+
+class WorkflowRunRequest(BaseModel):
+    workflow_name: str
+    article_ids: list[str]
+
+
+@app.post("/api/workflow-runs")
+async def create_workflow_run(body: WorkflowRunRequest):
+    workflows = get_workflows()
+    workflow = next((w for w in workflows if w["name"] == body.workflow_name), None)
+    if not workflow:
+        raise HTTPException(400, f"工作流 '{body.workflow_name}' 不存在")
+
+    if not body.article_ids:
+        raise HTTPException(400, "至少需要选择一篇文章")
+
+    for aid in body.article_ids:
+        if not (ARTICLES_DIR / aid).exists():
+            raise HTTPException(404, f"文章不存在: {aid}")
+
+    async def event_stream():
+        try:
+            for event in execute_workflow_stream(workflow, body.article_ids):
+                event_type = event.pop("type")
+                yield _sse(event_type, event)
+                await asyncio.sleep(0)
+        except Exception as e:
+            yield _sse("error", {"message": str(e)})
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
+
+
+@app.get("/api/workflow-runs")
+def get_workflow_runs():
+    return list_workflow_runs()
+
+
+@app.get("/api/workflow-runs/{run_id}")
+def get_workflow_run_detail(run_id: str):
+    run = get_workflow_run(run_id)
+    if not run:
+        raise HTTPException(404, "运行记录不存在")
+    return run
+
+
+@app.delete("/api/workflow-runs/{run_id}")
+def delete_workflow_run_endpoint(run_id: str):
+    delete_workflow_run(run_id)
     return {"ok": True}
 
 
