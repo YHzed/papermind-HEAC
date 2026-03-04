@@ -5,6 +5,16 @@ import { Clock, Play, Trash2, AlertCircle, CheckCircle2, Loader2 } from "lucide-
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { api, type Workflow, type WorkflowRunSummary } from "@/lib/api";
 
 const STATUS_STYLE: Record<string, { label: string; icon: typeof CheckCircle2; color: string }> = {
@@ -16,6 +26,7 @@ const STATUS_STYLE: Record<string, { label: string; icon: typeof CheckCircle2; c
 export function WorkflowsPage() {
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [runs, setRuns] = useState<WorkflowRunSummary[]>([]);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const load = useCallback(async () => {
@@ -33,15 +44,16 @@ export function WorkflowsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const handleDeleteRun = async (e: React.MouseEvent, runId: string) => {
-    e.stopPropagation();
-    if (!confirm("确定删除此运行记录？")) return;
+  const confirmDeleteRun = async () => {
+    if (!deleteTarget) return;
     try {
-      await api.deleteWorkflowRun(runId);
+      await api.deleteWorkflowRun(deleteTarget);
       toast.success("已删除");
       await load();
     } catch (err) {
       toast.error("删除失败: " + (err as Error).message);
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -157,7 +169,7 @@ export function WorkflowsPage() {
                         variant="ghost"
                         size="sm"
                         className="text-destructive hover:text-destructive"
-                        onClick={(e) => handleDeleteRun(e, run.id)}
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(run.id); }}
                       >
                         <Trash2 className="h-4 w-4" />
                       </Button>
@@ -169,6 +181,24 @@ export function WorkflowsPage() {
           </div>
         )}
       </section>
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定删除？</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作将永久删除该运行记录及其所有结果，无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmDeleteRun}>
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

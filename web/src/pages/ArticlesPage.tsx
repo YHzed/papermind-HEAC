@@ -11,6 +11,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { LogStream, type LogEntry } from "@/components/LogStream";
 import { streamSSE } from "@/lib/sse";
 import { api, type ArticleMeta, type Workflow } from "@/lib/api";
@@ -34,6 +44,7 @@ export function ArticlesPage() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [workflows, setWorkflows] = useState<Workflow[]>([]);
   const [showWorkflowDialog, setShowWorkflowDialog] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const navigate = useNavigate();
 
@@ -119,20 +130,21 @@ export function ArticlesPage() {
     }
   };
 
-  const handleDelete = async (e: React.MouseEvent, id: string) => {
-    e.stopPropagation();
-    if (!confirm("确定删除？")) return;
+  const confirmDelete = async () => {
+    if (!deleteTarget) return;
     try {
-      await api.deleteArticle(id);
+      await api.deleteArticle(deleteTarget);
       toast.success("已删除");
       setSelected((prev) => {
         const next = new Set(prev);
-        next.delete(id);
+        next.delete(deleteTarget);
         return next;
       });
       await load();
     } catch (err) {
       toast.error("删除失败: " + (err as Error).message);
+    } finally {
+      setDeleteTarget(null);
     }
   };
 
@@ -228,7 +240,7 @@ export function ArticlesPage() {
                       variant="ghost"
                       size="sm"
                       className="text-destructive hover:text-destructive"
-                      onClick={(e) => handleDelete(e, a.id)}
+                      onClick={(e) => { e.stopPropagation(); setDeleteTarget(a.id); }}
                     >
                       删除
                     </Button>
@@ -275,6 +287,24 @@ export function ArticlesPage() {
           </div>
         </div>
       )}
+
+      {/* Delete confirmation */}
+      <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>确定删除？</AlertDialogTitle>
+            <AlertDialogDescription>
+              此操作将永久删除该文章及其所有对话记录，无法撤销。
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>取消</AlertDialogCancel>
+            <AlertDialogAction variant="destructive" onClick={confirmDelete}>
+              删除
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Workflow selection dialog */}
       <Dialog open={showWorkflowDialog} onOpenChange={setShowWorkflowDialog}>
