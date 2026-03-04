@@ -1,0 +1,13 @@
+api_keys:
+  mistral: your-mistral-api-key
+  openai: your-openai-api-key
+llm:
+  base_url: https://api.openai.com/v1
+  model: gpt-4o
+  temperature: 0.7
+  max_tokens: 4096
+system_prompt: 你是一个专业的文章分析助手。用户会提供文章内容，请根据用户的问题进行分析和回答。
+templates:
+- name: 分析文章
+  description: 通用文章分析
+  user_prompt: 请对这篇文章进行全面分析
