@@ -358,6 +358,10 @@ async def create_workflow_run(body: WorkflowRunRequest):
     if not body.article_ids:
         raise HTTPException(400, "至少需要选择一篇文章")
 
+    steps = workflow.get("steps", [])
+    if steps and steps[0].get("type") == "aggregate" and len(body.article_ids) > 1:
+        raise HTTPException(400, "当第一步为汇总整合时，只允许选择一篇文章")
+
     for aid in body.article_ids:
         if not (ARTICLES_DIR / aid).exists():
             raise HTTPException(404, f"文章不存在: {aid}")

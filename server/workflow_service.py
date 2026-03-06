@@ -237,24 +237,41 @@ def execute_workflow_stream(
 
             elif step_type == "aggregate":
                 combined_parts = []
-                for prev_name, prev_data in previous_results.items():
-                    if isinstance(prev_data, dict):
-                        for aid, content in prev_data.items():
-                            art_name = next(
-                                (a["name"] for a in articles_info if a["id"] == aid),
-                                aid,
-                            )
-                            combined_parts.append(f"### {art_name}\n\n{content}")
-                    elif isinstance(prev_data, str):
-                        combined_parts.append(prev_data)
+                use_article_parts = False
+                if previous_results:
+                    for prev_name, prev_data in previous_results.items():
+                        if isinstance(prev_data, dict):
+                            for aid, content in prev_data.items():
+                                art_name = next(
+                                    (a["name"] for a in articles_info if a["id"] == aid),
+                                    aid,
+                                )
+                                combined_parts.append(f"### {art_name}\n\n{content}")
+                        elif isinstance(prev_data, str):
+                            combined_parts.append(prev_data)
+                else:
+                    # First step is aggregate: build interleaved text+image context (single article)
+                    aid = article_ids[0]
+                    article_dir = ARTICLES_DIR / aid
+                    article_md = (article_dir / "article.md").read_text(encoding="utf-8")
+                    images_dir = article_dir / "images"
+                    article_parts, _, _ = build_interleaved_content(article_md, images_dir)
 
-                combined_previous = "\n\n---\n\n".join(combined_parts)
+                    messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": article_parts},
+                        {"role": "user", "content": step_prompt},
+                    ]
+                    use_article_parts = True
 
-                messages = [
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": combined_previous},
-                    {"role": "user", "content": step_prompt},
-                ]
+                if not use_article_parts:
+                    combined_previous = "\n\n---\n\n".join(combined_parts)
+
+                    messages = [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": combined_previous},
+                        {"role": "user", "content": step_prompt},
+                    ]
 
                 aggregate_content = ""
                 for event in _run_llm_stream(client, settings, messages):
